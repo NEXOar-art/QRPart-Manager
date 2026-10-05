@@ -14,6 +14,8 @@ import { PrintLabelsModal } from './components/PrintLabelsModal';
 import { ShelvesView } from './components/ShelvesView';
 import { ActivityLogView } from './components/ActivityLogView';
 import { BusinessSettingsModal } from './components/BusinessSettingsModal';
+import { SheetSyncModal } from './components/SheetSyncModal';
+import { exportInventoryToExcel, sendPartToGoogleSheetWebhook } from './utils/sheetSync';
 
 export default function App() {
   const [parts, setParts] = useState<AutoPart[]>([]);
@@ -31,6 +33,7 @@ export default function App() {
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [initialPrintPart, setInitialPrintPart] = useState<AutoPart | undefined>(undefined);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSheetSyncOpen, setIsSheetSyncOpen] = useState(false);
   const [selectedShelfForView, setSelectedShelfForView] = useState<string | null>(null);
 
   // Load data on startup
@@ -93,6 +96,14 @@ export default function App() {
           : `Pieza restaurada a estado Disponible en ${changedItem.ubicacion.estante}.`
       });
       setActivities(loadActivities());
+
+      // If Google Sheets Webhook is active, sync status change in background
+      if (config.googleSheet?.webhookUrl && config.googleSheet.autoSyncOnSave) {
+        const itemToSync = updated.find(p => p.id === partId);
+        if (itemToSync) {
+          sendPartToGoogleSheetWebhook(config.googleSheet.webhookUrl, itemToSync, newStatus === 'vendida' ? 'sell' : 'update');
+        }
+      }
     }
 
     // Keep selected part in sync if modal is open
@@ -130,10 +141,39 @@ export default function App() {
     setIsFormOpen(false);
     setPartToEdit(undefined);
 
+    // Auto-sync to Google Sheets Webhook if configured
+    if (config.googleSheet?.webhookUrl && config.googleSheet.autoSyncOnSave) {
+      sendPartToGoogleSheetWebhook(config.googleSheet.webhookUrl, part, exists ? 'update' : 'create');
+    }
+
     // If modal was open, refresh it
     if (selectedPart && selectedPart.id === part.id) {
       setSelectedPart(part);
     }
+  };
+
+  // Import parts from Google Sheets or Excel
+  const handleImportFromSheetsOrExcel = (importedParts: AutoPart[], mode: 'replace' | 'merge') => {
+    let finalParts: AutoPart[];
+    if (mode === 'replace') {
+      finalParts = importedParts;
+    } else {
+      // Merge: update matching IDs, append new ones
+      const existingMap = new Map(parts.map(p => [p.id.toUpperCase(), p]));
+      importedParts.forEach(p => {
+        existingMap.set(p.id.toUpperCase(), p);
+      });
+      finalParts = Array.from(existingMap.values());
+    }
+
+    updatePartsState(finalParts);
+    logActivity({
+      partId: 'SHEETS',
+      partName: 'Importación Masiva',
+      action: 'creada',
+      description: `Se sincronizaron ${importedParts.length} piezas desde Google Sheets / Excel (${mode === 'replace' ? 'reemplazo total' : 'fusión'}).`
+    });
+    setActivities(loadActivities());
   };
 
   // Open single print dialog
@@ -230,6 +270,8 @@ export default function App() {
           setIsFormOpen(true);
         }}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSync={() => setIsSheetSyncOpen(true)}
+        syncConfig={config.googleSheet}
       />
 
       {/* Main Workspace Viewport */}
@@ -242,6 +284,8 @@ export default function App() {
             const found = parts.find(p => p.id === id);
             if (found) setSelectedPart(found);
           }}
+          onOpenSync={() => setIsSheetSyncOpen(true)}
+          syncConfig={config.googleSheet}
         />
 
         {/* Tab 1: Digital Inventory Spreadsheet / Cards */}
@@ -256,6 +300,8 @@ export default function App() {
               setIsFormOpen(true);
             }}
             onExportCsv={handleExportCsv}
+            onExportExcel={() => exportInventoryToExcel(parts)}
+            onOpenSync={() => setIsSheetSyncOpen(true)}
           />
         )}
 
@@ -418,6 +464,20 @@ export default function App() {
           }}
           onResetDemo={handleResetDemo}
           onImportBackup={handleImportBackup}
+        />
+      )}
+
+      {/* 6. Google Sheets & Excel Sync Modal */}
+      {isSheetSyncOpen && (
+        <SheetSyncModal
+          parts={parts}
+          config={config}
+          onClose={() => setIsSheetSyncOpen(false)}
+          onImportParts={handleImportFromSheetsOrExcel}
+          onUpdateConfig={(newCfg) => {
+            setConfig(newCfg);
+            saveConfig(newCfg);
+          }}
         />
       )}
 

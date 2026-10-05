@@ -44,6 +44,15 @@ export interface ActivityRecord {
   user?: string;
 }
 
+export interface GoogleSheetSyncConfig {
+  sheetUrl: string;          // Enlace de Google Sheet o ID
+  webhookUrl?: string;       // Webhook Google Apps Script para sincronización en tiempo real
+  lastSyncTime?: string;     // Última fecha de sincronización
+  autoSyncOnSave: boolean;   // Sincronizar automáticamente al registrar/editar piezas
+  syncStatus?: 'connected' | 'error' | 'disconnected';
+  lastError?: string;
+}
+
 export interface BusinessConfig {
   nombreDesarmadero: string;
   cuit: string;
@@ -51,4 +60,5 @@ export interface BusinessConfig {
   telefono: string;
   whatsapp: string;
   leyendaLegal: string;
+  googleSheet?: GoogleSheetSyncConfig;
 }

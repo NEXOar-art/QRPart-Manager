@@ -13,6 +13,8 @@ interface InventoryTableProps {
   onPrintSingle: (part: AutoPart) => void;
   onEditPart: (part: AutoPart) => void;
   onExportCsv: () => void;
+  onExportExcel?: () => void;
+  onOpenSync?: () => void;
 }
 
 export const InventoryTable: React.FC<InventoryTableProps> = ({
@@ -21,7 +23,9 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   onQuickStatusChange,
   onPrintSingle,
   onEditPart,
-  onExportCsv
+  onExportCsv,
+  onExportExcel,
+  onOpenSync
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | PartStatus>('all');
@@ -159,14 +163,37 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
               </button>
             </div>
 
+            {/* Google Sheets & Excel Modal Trigger */}
+            {onOpenSync && (
+              <button
+                onClick={onOpenSync}
+                title="Conectar o Cargar desde Google Sheets / Excel"
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-neutral-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors whitespace-nowrap"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Cargar Sheets / Excel</span>
+              </button>
+            )}
+
+            {/* Export Excel (.xlsx) button */}
+            {onExportExcel && (
+              <button
+                onClick={onExportExcel}
+                title="Exportar a archivo Excel (.xlsx)"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 rounded-lg transition-colors"
+              >
+                <span>.XLSX</span>
+              </button>
+            )}
+
             {/* Export CSV button */}
             <button
               onClick={onExportCsv}
               title="Exportar a planilla CSV"
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 rounded-lg transition-colors"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Exportar CSV</span>
+              <span className="hidden sm:inline">CSV</span>
+              <span className="sm:hidden">.csv</span>
             </button>
           </div>
         </div>

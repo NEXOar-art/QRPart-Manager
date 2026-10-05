@@ -3,7 +3,8 @@ import { AutoPart, PartStatus, LocationInfo } from '../types/inventory';
 import { SHELVES_DIRECTORY } from '../data/initialData';
 import { 
   X, Save, Car, MapPin, Tag, ShieldCheck, 
-  DollarSign, Image as ImageIcon, Plus, Sparkles 
+  DollarSign, Image as ImageIcon, Plus, Sparkles, 
+  Camera, Upload, Check 
 } from 'lucide-react';
 
 interface PartFormModalProps {
@@ -74,6 +75,7 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
   
   // Location
   const [estante, setEstante] = useState(partToEdit ? partToEdit.ubicacion.estante : 'Estante B-4');
+  const [isCustomShelf, setIsCustomShelf] = useState(false);
   const [nave, setNave] = useState(partToEdit ? partToEdit.ubicacion.nave : 'Nave Central');
   const [pasillo, setPasillo] = useState(partToEdit ? partToEdit.ubicacion.pasillo : 'Pasillo 2');
   const [nivel, setNivel] = useState(partToEdit?.ubicacion.nivel || 'Bandeja 1');
@@ -97,6 +99,12 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
 
   // Auto fill warehouse details when shelf changes
   const handleShelfChange = (selectedShelfId: string) => {
+    if (selectedShelfId === '__custom__') {
+      setIsCustomShelf(true);
+      setEstante('');
+      return;
+    }
+    setIsCustomShelf(false);
     setEstante(selectedShelfId);
     const found = SHELVES_DIRECTORY.find(s => s.id === selectedShelfId);
     if (found) {
@@ -111,18 +119,11 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
     }
   };
 
-  const handleAddCustomPhoto = () => {
-    if (customPhotoUrl.trim() && !photos.includes(customPhotoUrl.trim())) {
-      setPhotos([...photos, customPhotoUrl.trim()]);
-      setCustomPhotoUrl('');
-    }
-  };
-
   const handleRemovePhoto = (index: number) => {
     setPhotos(photos.filter((_, i) => i !== index));
   };
 
-  // Image file upload
+  // Image file upload or mobile camera capture
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -130,7 +131,8 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
       reader.onload = (uploadEvt) => {
         const result = uploadEvt.target?.result as string;
         if (result) {
-          setPhotos([...photos, result]);
+          // Put the newest captured photo first
+          setPhotos([result, ...photos]);
         }
       };
       reader.readAsDataURL(file);
@@ -146,7 +148,7 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
     const updatedLocation: LocationInfo = {
       nave,
       pasillo,
-      estante,
+      estante: estante.trim() || 'Estante B-4',
       nivel
     };
 
@@ -177,17 +179,17 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-3xl bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden my-4 flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-xs overflow-y-auto">
+      <div className="relative w-full max-w-3xl bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[95vh]">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800 bg-neutral-950">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-neutral-800 bg-neutral-950 shrink-0">
           <div>
-            <h3 className="font-semibold text-white text-base">
-              {partToEdit ? 'Editar Pieza de Inventario' : 'Registrar Nueva Pieza en Depósito'}
+            <h3 className="font-semibold text-white text-sm sm:text-base">
+              {partToEdit ? 'Editar Pieza de Inventario' : 'Registrar Pieza en Depósito (Operario)'}
             </h3>
-            <p className="text-xs text-neutral-400 mt-0.5">
-              Genera código QR único y asocia ubicación en estantería para despacho rápido.
+            <p className="text-[11px] sm:text-xs text-neutral-400 mt-0.5">
+              Asigná ubicación física, tomá fotos con el móvil y sincronizá con Google Sheets / Excel.
             </p>
           </div>
           <button
@@ -199,8 +201,32 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
         </div>
 
         {/* Scrollable Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5">
           
+          {/* Quick Mobile Snapshot Action Banner */}
+          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Camera className="w-5 h-5 text-amber-400 shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-white">Foto en Depósito desde el Móvil</p>
+                <p className="text-[11px] text-neutral-400">Capturá la pieza directamente con la cámara del celular.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <label className="px-3 py-1.5 text-xs font-semibold text-neutral-950 bg-amber-400 hover:bg-amber-300 rounded-lg cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs">
+                <Camera className="w-3.5 h-3.5" />
+                <span>Tomar Foto</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+
           {/* Section 1: Unique Code & Core Data */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
@@ -212,7 +238,7 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
                 value={id}
                 onChange={(e) => setId(e.target.value.toUpperCase())}
                 required
-                className="w-full bg-neutral-950 border border-neutral-700 rounded-lg px-3 py-2 text-sm font-mono font-bold text-amber-400 focus:outline-none focus:border-amber-400"
+                className="w-full bg-neutral-950 border border-neutral-700 rounded-lg px-3 py-2 text-xs sm:text-sm font-mono font-bold text-amber-400 focus:outline-none focus:border-amber-400"
               />
             </div>
 
@@ -226,19 +252,19 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
                 onChange={(e) => setPieza(e.target.value)}
                 placeholder="Ej: Óptica delantera derecha"
                 required
-                className="w-full bg-neutral-950 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400"
+                className="w-full bg-neutral-950 border border-neutral-700 rounded-lg px-3 py-2 text-xs sm:text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400"
               />
             </div>
           </div>
 
           {/* Section 2: Vehicle Source Data */}
-          <div className="p-4 bg-neutral-950/60 rounded-xl border border-neutral-800 space-y-3">
+          <div className="p-3.5 sm:p-4 bg-neutral-950/60 rounded-xl border border-neutral-800 space-y-3">
             <div className="flex items-center gap-2 text-xs font-semibold text-neutral-300">
               <Car className="w-4 h-4 text-amber-400" />
               <span>Vehículo de Origen (Donante)</span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
               <div>
                 <label className="text-[11px] text-neutral-400 block mb-1">Marca *</label>
                 <input
@@ -303,27 +329,47 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
           </div>
 
           {/* Section 3: Physical Location in Junkyard / Warehouse */}
-          <div className="p-4 bg-neutral-950/60 rounded-xl border border-neutral-800 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-semibold text-neutral-300">
-              <MapPin className="w-4 h-4 text-amber-400" />
-              <span>Ubicación Física en Depósito</span>
+          <div className="p-3.5 sm:p-4 bg-neutral-950/60 rounded-xl border border-neutral-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-semibold text-neutral-300">
+                <MapPin className="w-4 h-4 text-amber-400" />
+                <span>Ubicación Física en Depósito (Estante)</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCustomShelf(!isCustomShelf)}
+                className="text-[11px] text-amber-400 hover:underline"
+              >
+                {isCustomShelf ? 'Elegir de lista' : '+ Estante nuevo / personalizado'}
+              </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
               <div>
                 <label className="text-[11px] text-neutral-400 block mb-1">Estantería *</label>
-                <select
-                  value={estante}
-                  onChange={(e) => handleShelfChange(e.target.value)}
-                  className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                >
-                  {SHELVES_DIRECTORY.map(s => (
-                    <option key={s.id} value={s.id}>{s.id}</option>
-                  ))}
-                  <option value="Estante B-4">Estante B-4 (Ejemplo)</option>
-                  <option value="Estante E-1">Estante E-1</option>
-                  <option value="Estante F-2">Estante F-2</option>
-                </select>
+                {isCustomShelf ? (
+                  <input
+                    type="text"
+                    value={estante}
+                    onChange={(e) => setEstante(e.target.value)}
+                    placeholder="Ej: Estante E-3"
+                    required
+                    className="w-full bg-neutral-900 border border-amber-500 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
+                    autoFocus
+                  />
+                ) : (
+                  <select
+                    value={estante}
+                    onChange={(e) => handleShelfChange(e.target.value)}
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
+                  >
+                    {SHELVES_DIRECTORY.map(s => (
+                      <option key={s.id} value={s.id}>{s.id}</option>
+                    ))}
+                    <option value="Estante B-4">Estante B-4 (Ejemplo Gol)</option>
+                    <option value="__custom__">+ Otro estante...</option>
+                  </select>
+                )}
               </div>
 
               <div>
@@ -445,14 +491,21 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
 
           {/* Section 6: Photos */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-neutral-300 block">
-              Fotos de la Pieza
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-neutral-300">
+                Fotos de la Pieza ({photos.length})
+              </label>
+              <label className="text-[11px] text-amber-400 hover:underline cursor-pointer flex items-center gap-1">
+                <Upload className="w-3 h-3" />
+                <span>Elegir de galería</span>
+                <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+              </label>
+            </div>
             
             {/* Current Photos Row */}
             <div className="flex flex-wrap gap-2 items-center">
               {photos.map((url, idx) => (
-                <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-neutral-700 group">
+                <div key={idx} className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border border-neutral-700 group shrink-0">
                   <img src={url} alt={`Preview ${idx}`} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                   <button
                     type="button"
@@ -461,21 +514,26 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
                   >
                     <X className="w-4 h-4" />
                   </button>
+                  {idx === 0 && (
+                    <span className="absolute bottom-0 inset-x-0 bg-neutral-950/80 text-[8px] text-center text-amber-400 font-mono">
+                      Principal
+                    </span>
+                  )}
                 </div>
               ))}
 
-              {/* Upload button */}
-              <label className="w-16 h-16 rounded-lg border-2 border-dashed border-neutral-700 hover:border-amber-400 flex flex-col items-center justify-center text-neutral-400 hover:text-white cursor-pointer transition-colors">
-                <Plus className="w-4 h-4" />
-                <span className="text-[9px] mt-0.5">Subir</span>
-                <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+              {/* Mobile camera trigger square */}
+              <label className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg border-2 border-dashed border-neutral-700 hover:border-amber-400 flex flex-col items-center justify-center text-neutral-400 hover:text-white cursor-pointer transition-colors shrink-0">
+                <Camera className="w-4 h-4 text-amber-400" />
+                <span className="text-[9px] mt-0.5 font-medium">+ Cámara</span>
+                <input type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
               </label>
             </div>
 
             {/* Quick Presets for Demo / Testing */}
-            <div className="pt-2">
-              <p className="text-[11px] text-neutral-400 mb-1.5">
-                Fotos de muestra por tipo de pieza (un toque para agregar):
+            <div className="pt-1">
+              <p className="text-[11px] text-neutral-400 mb-1">
+                O asociar foto de muestra de autopartes:
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {PRESET_PHOTOS.map((p, idx) => (
@@ -483,7 +541,7 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
                     key={idx}
                     type="button"
                     onClick={() => handleAddPresetPhoto(p.url)}
-                    className="text-[11px] px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition-colors"
+                    className="text-[11px] px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition-colors"
                   >
                     + {p.label}
                   </button>
@@ -506,8 +564,8 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
             />
           </div>
 
-          {/* Submit Toolbar */}
-          <div className="pt-4 border-t border-neutral-800 flex items-center justify-end gap-3">
+          {/* Sticky Submit Toolbar for Mobile & Desktop */}
+          <div className="sticky bottom-0 pt-3 pb-1 bg-neutral-900 border-t border-neutral-800 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
@@ -517,10 +575,10 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
             </button>
             <button
               type="submit"
-              className="flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-neutral-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors shadow-sm"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-6 py-2.5 text-xs font-semibold text-neutral-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors shadow-sm"
             >
               <Save className="w-4 h-4" />
-              <span>{partToEdit ? 'Guardar Cambios' : 'Registrar Pieza & QR'}</span>
+              <span>{partToEdit ? 'Guardar Cambios' : 'Registrar en Depósito & QR'}</span>
             </button>
           </div>
 

@@ -1,20 +1,69 @@
 import React from 'react';
-import { AutoPart } from '../types/inventory';
-import { AlertCircle, CheckCircle2, Clock, PackageCheck, QrCode } from 'lucide-react';
+import { AutoPart, GoogleSheetSyncConfig } from '../types/inventory';
+import { 
+  AlertCircle, CheckCircle2, Clock, PackageCheck, 
+  QrCode, FileSpreadsheet, RefreshCw, CloudCheck 
+} from 'lucide-react';
 
 interface StatsBannerProps {
   parts: AutoPart[];
   onSelectSample: (id: string) => void;
+  onOpenSync?: () => void;
+  syncConfig?: GoogleSheetSyncConfig;
 }
 
-export const StatsBanner: React.FC<StatsBannerProps> = ({ parts, onSelectSample }) => {
+export const StatsBanner: React.FC<StatsBannerProps> = ({ 
+  parts, 
+  onSelectSample,
+  onOpenSync,
+  syncConfig 
+}) => {
   const total = parts.length;
   const disponibles = parts.filter(p => p.status === 'disponible').length;
   const reservadas = parts.filter(p => p.status === 'reservada').length;
   const vendidas = parts.filter(p => p.status === 'vendida').length;
 
+  const isConnected = syncConfig?.syncStatus === 'connected';
+
   return (
     <div className="space-y-3">
+      {/* Mobile Operator + PC Spreadsheet Sync Notification Banner */}
+      <div className="bg-gradient-to-r from-neutral-900 to-neutral-900/80 border border-neutral-800 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
+            <FileSpreadsheet className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-semibold text-white">Sincronización PC & Operarios en Depósito</span>
+              {isConnected ? (
+                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.2 rounded border border-emerald-500/20 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Google Sheets Activo
+                </span>
+              ) : (
+                <span className="text-[11px] text-neutral-400">
+                  Compatible con Google Sheets & Excel (.xlsx)
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-neutral-400 mt-0.5">
+              Los operarios registran piezas, fotos y estantes desde el celular en el depósito y se actualiza para consultarlo desde una computadora.
+            </p>
+          </div>
+        </div>
+
+        {onOpenSync && (
+          <button
+            onClick={onOpenSync}
+            className="self-start sm:self-auto px-3 py-1.5 text-xs font-medium text-neutral-200 bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{isConnected ? 'Ver Planilla Conectada' : 'Cargar Google Sheets / Excel'}</span>
+          </button>
+        )}
+      </div>
+
       {/* Example practical highlight card as requested in user prompt */}
       <div className="bg-neutral-900/90 border border-neutral-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
         <div className="flex items-start sm:items-center gap-3">
