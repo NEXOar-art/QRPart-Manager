@@ -1,0 +1,6 @@
+{
+  "name": "QRParts Manager - Control de Inventario y Etiquetas QR para Desarmaderos",
+  "description": "Sistema de gestión integral de piezas para desarmaderos y venta de autopartes con códigos QR, impresión de etiquetas para estanterías y piezas, escáner móvil y control de stock en tiempo real.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
